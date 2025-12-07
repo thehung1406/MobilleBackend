@@ -1,0 +1,38 @@
+# === Core FastAPI ===
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+
+# === Database + ORM ===
+sqlmodel==0.0.22
+sqlalchemy==2.0.34
+alembic==1.13.2
+
+# === Security / JWT ===
+python-jose==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.1.2
+
+# === Pydantic / Validation ===
+pydantic==2.8.2
+pydantic-settings==2.2.1
+
+# === Utilities ===
+python-multipart==0.0.9
+email-validator==2.1.1
+python-dotenv==1.0.1
+
+# === CORS Middleware ===
+starlette==0.38.2
+
+# === Async / HTTP Client ===
+httpx==0.27.2
+
+# === Logging ===
+loguru==0.7.2
+
+# === Tests ===
+pytest==8.3.2
+pytest-asyncio==0.23.8
+
+# === Optional: Image processing for upload (nếu có) ===
+Pillow==10.4.0

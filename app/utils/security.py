@@ -1,27 +1,27 @@
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from jose import jwt
+
 from app.core.config import settings
 
-pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def hash_password(pw: str) -> str:
-    return pwd_ctx.hash(pw)
 
-def verify_password(pw: str, hashed: str) -> bool:
-    return pwd_ctx.verify(pw, hashed)
+# -------------------------------------
+# PASSWORD HASH / VERIFY
+# -------------------------------------
+def hash_password(password: str):
+    return pwd.hash(password)
 
-def create_token(sub: str, scope: str, expires_delta: timedelta) -> str:
-    now = datetime.utcnow()
-    payload = {
-        "sub": sub,
-        "scope": scope,
-        "iat": now,
-        "exp": now + expires_delta,
-    }
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
-def create_access_token(sub: str, role: str) -> str:
+def verify_password(password: str, hashed: str):
+    return pwd.verify(password, hashed)
+
+
+# -------------------------------------
+# TOKEN GENERATION
+# -------------------------------------
+def create_access_token(sub: str, role: str):
     now = datetime.utcnow()
     payload = {
         "sub": sub,
@@ -32,5 +32,13 @@ def create_access_token(sub: str, role: str) -> str:
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
-def create_refresh_token(sub: str) -> str:
-    return create_token(sub, "refresh", timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS))
+
+def create_refresh_token(sub: str):
+    now = datetime.utcnow()
+    payload = {
+        "sub": sub,
+        "scope": "refresh",
+        "iat": now,
+        "exp": now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)

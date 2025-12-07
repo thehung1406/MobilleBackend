@@ -1,6 +1,14 @@
 from enum import Enum
 
+
 class UserRole(str, Enum):
-    super_admin = "super_admin"
-    staff = "staff"
-    customer = "customer"
+    SUPER_ADMIN = "super_admin"
+    STAFF = "staff"
+    CUSTOMER = "customer"
+
+
+class BookingStatus(str, Enum):
+    PENDING = "pending"
+    PAID = "paid"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"

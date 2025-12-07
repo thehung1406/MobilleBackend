@@ -1,14 +1,12 @@
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship
 
-from app.models import Property, Room
-
 
 class RoomType(SQLModel, table=True):
     __tablename__ = "room_type"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    property_id: int = Field(foreign_key="property.id")
+    property_id: int = Field(foreign_key="property.id", index=True)
 
     price: int
     name: str

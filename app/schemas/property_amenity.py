@@ -1,26 +1,14 @@
-"""
-Schemas for property amenities.
-
-``PropertyAmenityCreate`` captures fields required to create a new
-amenity for a property.  ``PropertyAmenityOut`` represents the
-amenity returned from the API.
-"""
-
-from __future__ import annotations
-
-import uuid
-from typing import Optional
 from pydantic import BaseModel
 
-
 class PropertyAmenityCreate(BaseModel):
-    property_id: uuid.UUID
-    amenity_type: str
-    description: Optional[str] = None
+    property_id: int
+    amenity_id: int
 
 
-class PropertyAmenityOut(BaseModel):
-    id: uuid.UUID
-    property_id: uuid.UUID
-    amenity_type: str
-    description: Optional[str]
+class PropertyAmenityRead(BaseModel):
+    id: int
+    property_id: int
+    amenity_id: int
+
+    class Config:
+        from_attributes = True

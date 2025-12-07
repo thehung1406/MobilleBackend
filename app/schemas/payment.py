@@ -1,14 +1,17 @@
 from pydantic import BaseModel
-import uuid
+from typing import Optional
+from datetime import datetime
 
 class PaymentCreate(BaseModel):
-    booking_id: uuid.UUID
-    method: str = "card"
-
-class PaymentOut(BaseModel):
-    id: uuid.UUID
-    booking_id: uuid.UUID
+    booking_id: int
     amount: float
-    method: str
+
+class PaymentRead(BaseModel):
+    id: int
+    booking_id: int
+    amount: float
     status: str
-    transaction_code: str | None = None
+    payment_time: Optional[datetime] = None   # FIX HERE
+
+    class Config:
+        from_attributes = True

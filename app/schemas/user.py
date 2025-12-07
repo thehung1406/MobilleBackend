@@ -1,53 +1,56 @@
+from pydantic import BaseModel, EmailStr
 from typing import Optional
-from pydantic import BaseModel
-from datetime import datetime
-import uuid
 from app.utils.enums import UserRole
 
 
-# ============================================================
-# 📤 OUTPUT SCHEMA
-# ============================================================
-class UserOut(BaseModel):
-    id: uuid.UUID
-    email: str
+# ======================
+# BASE
+# ======================
+class UserBase(BaseModel):
+    email: EmailStr
     full_name: str
-    phone: str
-    role: UserRole        # 🔁 dùng Enum luôn, API trả về vẫn là "ADMIN" / "CUSTOMER"
-    is_active: bool
-    email_verified: bool
-    created_at: datetime
+    phone: Optional[str] = None
+
+
+# ======================
+# CREATE NORMAL USER
+# ======================
+class UserCreate(UserBase):
+    password: str
+    role: UserRole = UserRole.CUSTOMER
+    property_id: Optional[int] = None   # chỉ staff mới dùng
+
+
+# ======================
+# UPDATE
+# ======================
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+
+
+# ======================
+# READ RESPONSE
+# ======================
+class UserRead(UserBase):
+    id: int
+    role: UserRole
+    property_id: Optional[int]
 
     class Config:
-        from_attributes = True   # chuẩn cho Pydantic v2
+        from_attributes = True
 
 
-# ============================================================
-# ✏️ UPDATE SCHEMA
-# ============================================================
-class UserUpdate(BaseModel):
-    email: Optional[str] = None
-    password: Optional[str] = None
-    full_name: Optional[str] = None
-    phone: Optional[str] = None
-
-class UserUpdateAdmin(BaseModel):
-    email: Optional[str] = None
-    password: Optional[str] = None
-    full_name: Optional[str] = None
-    phone: Optional[str] = None
-    role: Optional[UserRole] = None     # ⭐ Admin được phép cập nhật role
-    is_active: Optional[bool] = None    # ⭐ Admin được phép bật/tắt tài khoản
-
-
-# ============================================================
-# 🧩 CREATE SCHEMA
-# ============================================================
-class UserCreate(BaseModel):
-    email: str
+# ======================
+# STAFF CREATE
+# ======================
+class StaffCreate(BaseModel):
+    email: EmailStr
     password: str
     full_name: str
-    phone: str
-    # 👉 Dùng Enum, Pydantic tự convert từ string "ADMIN" / "CUSTOMER"
-    role: UserRole = UserRole.CUSTOMER
-    is_active: bool = True
+    phone: Optional[str] = None
+    property_id: int
+
+
+class StaffRead(UserRead):
+    pass

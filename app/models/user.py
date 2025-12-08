@@ -1,15 +1,18 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, Enum as SQLEnum
-
 from app.utils.enums import UserRole
+
+if TYPE_CHECKING:
+    from .booking import Booking
+    from .review import Review
 
 
 class User(SQLModel, table=True):
     __tablename__ = "user"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    email: str = Field(index=True, unique=True, nullable=False)
+    email: str = Field(unique=True, nullable=False, index=True)
     password_hash: str = Field(nullable=False)
     full_name: str
     phone: Optional[str] = None
@@ -27,6 +30,6 @@ class User(SQLModel, table=True):
 
     is_active: bool = True
 
-    # Relationships
+    # RELATIONSHIPS
     bookings: List["Booking"] = Relationship(back_populates="user")
     reviews: List["Review"] = Relationship(back_populates="user")

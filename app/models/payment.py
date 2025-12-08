@@ -1,6 +1,9 @@
-from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
+from datetime import datetime
+
+if TYPE_CHECKING:
+    from .booking import Booking
 
 
 class Payment(SQLModel, table=True):
@@ -10,8 +13,9 @@ class Payment(SQLModel, table=True):
     booking_id: int = Field(foreign_key="booking.id")
 
     amount: float
-    payment_type: str = "fake_gateway"
+    payment_type: str      # momo / vnpay / stripe / cash
     status: str = "pending"
     payment_time: Optional[datetime] = None
 
-    booking: "Booking" = Relationship(back_populates="payments")
+    # RELATIONS
+    booking: "Booking" = Relationship(back_populates="payment")

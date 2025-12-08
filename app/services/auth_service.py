@@ -1,9 +1,15 @@
-# app/services/auth_service.py
-from sqlmodel import Session
+from fastapi import HTTPException, status
+from sqlmodel import Session, select
+
 from app.repositories.auth_repo import AuthRepository
 from app.models.user import User
 from app.utils.enums import UserRole
-from app.utils.security import hash_password, verify_password, create_access_token, create_refresh_token
+from app.utils.security import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    create_refresh_token
+)
 
 
 class AuthService:
@@ -11,10 +17,13 @@ class AuthService:
     def __init__(self):
         self.repo = AuthRepository()
 
-    # REGISTER CUSTOMER
+    # REGISTER
     def register(self, session: Session, data):
         if self.repo.get_user_by_email(session, data.email):
-            raise ValueError("Email already exists")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already exists"
+            )
 
         user = User(
             email=data.email,
@@ -27,25 +36,43 @@ class AuthService:
         return self.repo.create_user(session, user)
 
     # LOGIN
-    def login(self, session: Session, data):
-        user = self.repo.get_user_by_email(session, data.email)
-        if not user or not verify_password(data.password, user.password_hash):
-            raise ValueError("Invalid credentials")
+    def login(self, session: Session, email: str, password: str):
 
-        access = create_access_token(user.id, user.role.value)
-        refresh = create_refresh_token(user.id)
+        user = session.exec(select(User).where(User.email == email)).first()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Email not found"
+            )
+
+        if not verify_password(password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect password"
+            )
+
+        access_token = create_access_token(sub=str(user.id), role=user.role.value)
+        refresh_token = create_refresh_token(sub=str(user.id))
 
         return {
-            "access_token": access,
-            "refresh_token": refresh,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
             "token_type": "bearer",
-            "user": user,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "role": user.role.value,
+            }
         }
 
-    # CREATE STAFF (SUPER ADMIN)
+    # CREATE STAFF
     def create_staff(self, session: Session, data):
         if self.repo.get_user_by_email(session, data.email):
-            raise ValueError("Email already exists")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already exists"
+            )
 
         staff = User(
             email=data.email,
@@ -53,12 +80,12 @@ class AuthService:
             phone=data.phone,
             password_hash=hash_password(data.password),
             role=UserRole.STAFF,
-            property_id=data.property_id,
+            property_id=data.property_id
         )
 
         return self.repo.create_user(session, staff)
 
-    # LIST ALL USERS (SUPER ADMIN)
+    # LIST USERS
     def list_users(self, session: Session):
         return self.repo.list_users(session)
 
@@ -73,11 +100,3 @@ class AuthService:
         session.commit()
         session.refresh(user)
         return user
-
-    # DELETE USER
-    def delete_user(self, session: Session, user_id):
-        user = self.repo.get_user(session, user_id)
-        if not user:
-            raise ValueError("User not found")
-
-        self.repo.delete_user(session, user)

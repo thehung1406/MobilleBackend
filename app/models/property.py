@@ -1,5 +1,10 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
+
+if TYPE_CHECKING:
+    from .room_type import RoomType
+    from .review import Review
+    from .property_amenity import PropertyAmenity
 
 
 class Property(SQLModel, table=True):
@@ -16,7 +21,7 @@ class Property(SQLModel, table=True):
     image: Optional[str] = None
     cancel_policy: Optional[str] = None
 
-    # Relationships
+    # RELATIONS
     room_types: List["RoomType"] = Relationship(back_populates="property")
     reviews: List["Review"] = Relationship(back_populates="property")
     amenities: List["PropertyAmenity"] = Relationship(back_populates="property")

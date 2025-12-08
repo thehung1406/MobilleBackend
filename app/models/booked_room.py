@@ -1,16 +1,19 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
+
+if TYPE_CHECKING:
+    from .booking import Booking
+    from .room import Room
+
 
 class BookedRoom(SQLModel, table=True):
     __tablename__ = "booked_room"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    room_id: int = Field(foreign_key="room.id")
+
     booking_id: int = Field(foreign_key="booking.id")
+    room_id: int = Field(foreign_key="room.id")
 
-    checkin: str
-    checkout: str
-    price: int
-
-    room: "Room" = Relationship(back_populates="booked_rooms")
+    # RELATIONS
     booking: "Booking" = Relationship(back_populates="booked_rooms")
+    room: "Room" = Relationship(back_populates="booked_rooms")

@@ -1,7 +1,8 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 
-from app.models.property_amenity import PropertyAmenity
+if TYPE_CHECKING:
+    from .property_amenity import PropertyAmenity
 
 
 class Amenity(SQLModel, table=True):

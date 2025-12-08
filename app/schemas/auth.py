@@ -21,8 +21,6 @@ class SignupRequest(BaseModel):
     password: str
     full_name: str
     phone: Optional[str] = None
-    role: UserRole = UserRole.CUSTOMER
-    property_id: Optional[int] = None
 
 
 

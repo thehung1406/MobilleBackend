@@ -1,14 +1,15 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
-from app.models.user import User
-from app.models.property import Property
+
+if TYPE_CHECKING:
+    from .user import User
+    from .property import Property
 
 
 class Review(SQLModel, table=True):
     __tablename__ = "review"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-
     property_id: int = Field(foreign_key="property.id", index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
 

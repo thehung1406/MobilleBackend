@@ -12,9 +12,9 @@ from app.utils.enums import UserRole
 # Models
 from app.models.user import User
 
-# ----------------------------
+# ------------------------------------------------------------
 # PUBLIC ROUTERS
-# ----------------------------
+# ------------------------------------------------------------
 from app.routers.auth import router as auth_router
 from app.routers.booking import router as booking_router
 from app.routers.payment import router as payment_router
@@ -23,9 +23,9 @@ from app.routers.room_search import router as room_search_router
 from app.routers.property_search import router as property_search_router
 from app.routers.webhook_payment import router as webhook_payment_router
 
-# ----------------------------
+# ------------------------------------------------------------
 # ADMIN ROUTERS
-# ----------------------------
+# ------------------------------------------------------------
 from app.routers.admin.property import router as admin_property_router
 from app.routers.admin.amenity import router as admin_amenity_router
 from app.routers.admin.room import router as admin_room_router
@@ -46,6 +46,7 @@ def create_app() -> FastAPI:
         o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()
     ]
 
+    # Local dev allowed origins
     dev_origins = [
         "http://localhost:3000",
         "http://localhost:3001",
@@ -79,11 +80,11 @@ def create_app() -> FastAPI:
     # ------------------------------------------------------------
     # REGISTER ADMIN ROUTES
     # ------------------------------------------------------------
-    app.include_router(admin_property_router)
-    app.include_router(admin_amenity_router)
-    app.include_router(admin_room_router)
-    app.include_router(admin_room_type_router)
-    app.include_router(admin_property_amenity_router)
+    app.include_router(admin_property_router)          # /admin/property
+    app.include_router(admin_amenity_router)           # /admin/amenity
+    app.include_router(admin_room_router)              # /admin/room
+    app.include_router(admin_room_type_router)         # /admin/room-type
+    app.include_router(admin_property_amenity_router)  # /admin/property-amenity
 
     # ------------------------------------------------------------
     # STARTUP: INIT DB + CREATE SUPER ADMIN
@@ -104,7 +105,7 @@ def create_app() -> FastAPI:
                 print(f"✔ Super Admin already exists: {super_email}")
                 return
 
-            # Create new super admin
+            # Create fresh Super Admin
             super_admin = User(
                 email=super_email,
                 full_name="Super Admin",
@@ -120,5 +121,7 @@ def create_app() -> FastAPI:
     return app
 
 
-# Entry point
+# ------------------------------------------------------------
+# FINAL APP INSTANCE
+# ------------------------------------------------------------
 app = create_app()

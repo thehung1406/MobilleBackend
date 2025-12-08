@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     ALGORITHM: str
 
     DATABASE_URL: str
-    REDIS_URL: str
+    REDIS_URL: str  # bạn vẫn giữ lại để dùng cho Celery nếu cần
 
     SUPERUSER_EMAIL: str
     SUPERUSER_PASSWORD: str
@@ -28,8 +28,11 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
 
-    # ⭐ THÊM MỚI
-    FRONTEND_URL: str  # ví dụ http://localhost:3000 hoặc domain chính thức
+    FRONTEND_URL: str
+
+    # ⭐ THÊM (bắt buộc cho Redis Cache)
+    REDIS_HOST: str = "redis"
+    REDIS_PORT: int = 6379
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

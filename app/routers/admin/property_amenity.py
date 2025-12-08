@@ -1,65 +1,50 @@
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
-from app.schemas.amenity import AmenityCreate, AmenityUpdate, AmenityRead
-from app.services.amenity_service import AmenityService
+from app.schemas.property_amenity import (
+    PropertyAmenityCreate,
+    PropertyAmenityRead,
+)
+from app.services.property_amenity_service import PropertyAmenityService
 from app.utils.dependencies import (
-    require_super_admin,
     get_session,
+    require_super_admin,
 )
 
-service = AmenityService()
+router = APIRouter(
+    prefix="/admin/property-amenity",
+    tags=["Admin Property Amenity"],
+)
 
-# ============================================================
-# ✅ PUBLIC API — ai cũng xem được danh sách tiện ích
-# Mobile App dùng để hiển thị checkbox filter (wifi, hồ bơi,...)
-# ============================================================
-
-public_router = APIRouter(prefix="/amenity", tags=["Amenity"])
-
-@public_router.get("", response_model=list[AmenityRead])
-def public_list_amenities(session: Session = Depends(get_session)):
-    return service.list(session)
+service = PropertyAmenityService()
 
 
-# ============================================================
-# ADMIN API — SUPER ADMIN ONLY
-# ============================================================
-
-admin_router = APIRouter(prefix="/admin/amenity", tags=["Admin Amenity"])
-
-@admin_router.post("", response_model=AmenityRead)
-def create_amenity(
-    payload: AmenityCreate,
+# CREATE
+@router.post("", response_model=PropertyAmenityRead)
+def create_property_amenity(
+    payload: PropertyAmenityCreate,
     admin=Depends(require_super_admin),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ):
-    return service.create(session, payload)
+    return service.add(session, payload)
 
 
-@admin_router.get("", response_model=list[AmenityRead])
-def list_admin_amenities(
+# LIST ALL OF A PROPERTY
+@router.get("/property/{property_id}", response_model=list[PropertyAmenityRead])
+def list_property_amenities(
+    property_id: int,
     admin=Depends(require_super_admin),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ):
-    return service.list(session)
+    return service.list_by_property(session, property_id)
 
 
-@admin_router.patch("/{amenity_id}", response_model=AmenityRead)
-def update_amenity(
-    amenity_id: int,
-    payload: AmenityUpdate,
+# DELETE
+@router.delete("/{pa_id}")
+def delete_property_amenity(
+    pa_id: int,
     admin=Depends(require_super_admin),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ):
-    return service.update(session, amenity_id, payload)
-
-
-@admin_router.delete("/{amenity_id}")
-def delete_amenity(
-    amenity_id: int,
-    admin=Depends(require_super_admin),
-    session: Session = Depends(get_session)
-):
-    service.delete(session, amenity_id)
-    return {"message": "Amenity deleted"}
+    service.remove(session, pa_id)
+    return {"message": "Property amenity deleted"}

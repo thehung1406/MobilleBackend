@@ -17,15 +17,19 @@ class AuthService:
     def __init__(self):
         self.repo = AuthRepository()
 
-    # REGISTER
+    # =====================================================
+    # REGISTER CUSTOMER
+    # =====================================================
     def register(self, session: Session, data):
+        """CUSTOMER đăng ký tài khoản"""
+
         if self.repo.get_user_by_email(session, data.email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already exists"
             )
 
-        user = User(
+        new_user = User(
             email=data.email,
             full_name=data.full_name,
             phone=data.phone,
@@ -33,12 +37,14 @@ class AuthService:
             role=UserRole.CUSTOMER,
         )
 
-        return self.repo.create_user(session, user)
+        return self.repo.create_user(session, new_user)
 
+    # =====================================================
     # LOGIN
+    # =====================================================
     def login(self, session: Session, email: str, password: str):
 
-        user = session.exec(select(User).where(User.email == email)).first()
+        user = self.repo.get_user_by_email(session, email)
 
         if not user:
             raise HTTPException(
@@ -52,8 +58,14 @@ class AuthService:
                 detail="Incorrect password"
             )
 
-        access_token = create_access_token(sub=str(user.id), role=user.role.value)
-        refresh_token = create_refresh_token(sub=str(user.id))
+        # Create tokens
+        access_token = create_access_token(
+            sub=str(user.id),
+            role=user.role.value
+        )
+        refresh_token = create_refresh_token(
+            sub=str(user.id)
+        )
 
         return {
             "access_token": access_token,
@@ -62,12 +74,18 @@ class AuthService:
             "user": {
                 "id": user.id,
                 "email": user.email,
+                "full_name": user.full_name,
                 "role": user.role.value,
+                "property_id": user.property_id
             }
         }
 
-    # CREATE STAFF
+    # =====================================================
+    # CREATE STAFF (SUPER ADMIN)
+    # =====================================================
     def create_staff(self, session: Session, data):
+        """Super Admin tạo Staff và gán property_id"""
+
         if self.repo.get_user_by_email(session, data.email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -85,16 +103,29 @@ class AuthService:
 
         return self.repo.create_user(session, staff)
 
+    # =====================================================
     # LIST USERS
+    # =====================================================
     def list_users(self, session: Session):
+        """Super Admin gọi danh sách toàn bộ user"""
         return self.repo.list_users(session)
 
+    # =====================================================
     # UPDATE PROFILE
+    # =====================================================
     def update_profile(self, session: Session, user: User, data):
-        if data.full_name:
+        changed = False
+
+        if data.full_name is not None:
             user.full_name = data.full_name
-        if data.phone:
+            changed = True
+
+        if data.phone is not None:
             user.phone = data.phone
+            changed = True
+
+        if not changed:
+            return user  # Không thay đổi gì
 
         session.add(user)
         session.commit()

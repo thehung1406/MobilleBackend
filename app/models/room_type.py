@@ -17,6 +17,5 @@ class RoomType(SQLModel, table=True):
     max_occupancy: int
     is_active: bool = True
 
-    # RELATIONS
     property: "Property" = Relationship(back_populates="room_types")
     rooms: List["Room"] = Relationship(back_populates="room_type")

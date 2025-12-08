@@ -1,3 +1,4 @@
+# app/routers/auth.py
 from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session
@@ -12,11 +13,17 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 auth_service = AuthService()
 
 
+# -----------------------------------------------------
+# PUBLIC — CUSTOMER REGISTER
+# -----------------------------------------------------
 @router.post("/register", response_model=UserRead)
 def register(payload: SignupRequest, session: Session = Depends(get_session)):
     return auth_service.register(session, payload)
 
 
+# -----------------------------------------------------
+# PUBLIC — LOGIN (OAuth2 form-data)
+# -----------------------------------------------------
 @router.post("/login")
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -29,6 +36,9 @@ def login(
     )
 
 
+# -----------------------------------------------------
+# SUPER ADMIN — CREATE STAFF
+# -----------------------------------------------------
 @router.post("/create-staff", response_model=UserRead)
 def create_staff(
     payload: StaffCreate,
@@ -38,6 +48,9 @@ def create_staff(
     return auth_service.create_staff(session, payload)
 
 
+# -----------------------------------------------------
+# SUPER ADMIN — LIST ALL USERS
+# -----------------------------------------------------
 @router.get("/users", response_model=list[UserRead])
 def list_users(
     admin=Depends(require_super_admin),
@@ -46,6 +59,9 @@ def list_users(
     return auth_service.list_users(session)
 
 
+# -----------------------------------------------------
+# ANY AUTH USER — UPDATE PROFILE
+# -----------------------------------------------------
 @router.patch("/profile", response_model=UserRead)
 def update_profile(
     data: UserUpdate,

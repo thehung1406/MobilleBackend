@@ -3,14 +3,14 @@ from typing import List, Optional
 from datetime import date
 
 
-class SearchRequest(BaseModel):
+class RoomSearchRequest(BaseModel):
     property_id: int
     checkin: date
     checkout: date
     num_guests: int
-    min_price: Optional[float] = None
-    max_price: Optional[float] = None
-    amenities: Optional[List[int]] = None  # list amenity_id
+    min_price: Optional[int] = None
+    max_price: Optional[int] = None
+    amenities: Optional[List[int]] = None
 
 
 class AvailableRoom(BaseModel):
@@ -21,13 +21,13 @@ class AvailableRoom(BaseModel):
 class AvailableRoomType(BaseModel):
     id: int
     name: str
-    price: float
+    price: int
     max_occupancy: int
     room_count: int
     available_rooms: List[AvailableRoom]
 
 
-class SearchResponse(BaseModel):
+class RoomSearchResponse(BaseModel):
     property_id: int
     checkin: date
     checkout: date

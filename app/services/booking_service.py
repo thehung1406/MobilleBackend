@@ -12,37 +12,51 @@ from app.repositories.booking_repo import BookingRepository
 
 
 class BookingService:
-
     def __init__(self):
         self.repo = BookingRepository()
 
-    # ---------------- VALIDATION ----------------
-
+    # ========================================================
+    # VALIDATION: DATE
+    # ========================================================
     def validate_dates(self, checkin: str, checkout: str):
-        checkin_dt = datetime.strptime(checkin, "%Y-%m-%d")
-        checkout_dt = datetime.strptime(checkout, "%Y-%m-%d")
+        try:
+            checkin_dt = datetime.strptime(checkin, "%Y-%m-%d").date()
+            checkout_dt = datetime.strptime(checkout, "%Y-%m-%d").date()
+        except Exception:
+            raise ValueError("Invalid date format. Use YYYY-MM-DD")
 
         if checkin_dt >= checkout_dt:
-            raise ValueError("Checkout must be after checkin")
+            raise ValueError("Checkout date must be after checkin")
 
         return checkin_dt, checkout_dt
 
+    # ========================================================
+    # VALIDATION: CAPACITY
+    # ========================================================
     def validate_capacity(self, rooms: List[Room], num_guests: int):
-        total_capacity = sum(room.room_type.max_occupancy for room in rooms)
+        total_capacity = sum(r.room_type.max_occupancy for r in rooms)
         if num_guests > total_capacity:
-            raise ValueError("Số lượng khách vượt quá sức chứa phòng")
+            raise ValueError("Number of guests exceeds room capacity")
 
-    # ---------------- CHECK ROOM ----------------
+    # ========================================================
+    # CHECK ROOM AVAILABILITY
+    # ========================================================
+    def is_room_available(self, session: Session, room_id: int, checkin, checkout):
+        """Kiểm tra phòng có trống không"""
+        return self.repo.get_overlapping_room(session, room_id, checkin, checkout) is None
 
-    def is_room_available(self, session: Session, room_id, checkin, checkout):
-        return (
-            self.repo.get_overlapping_room(session, room_id, checkin, checkout)
-            is None
-        )
-
-    # ---------------- CREATE BOOKING ----------------
-
+    # ========================================================
+    # CREATE BOOKING
+    # ========================================================
     def process_booking(self, data: dict) -> Booking:
+        """
+        Main logic tạo booking:
+        - Validate user
+        - Validate phòng
+        - Validate ngày
+        - Check phòng có bị booked overlap không
+        - Tạo booking + booked room
+        """
 
         user_id = data["user_id"]
         room_ids: List[int] = data["room_ids"]
@@ -51,37 +65,52 @@ class BookingService:
         checkout = data["checkout"]
         price = data["price"]
 
+        # --- Validate dates ---
         checkin_dt, checkout_dt = self.validate_dates(checkin, checkout)
 
         with Session(engine) as session:
+
+            # ---------------------------
+            # 1. Validate user
+            # ---------------------------
             user = session.get(User, user_id)
             if not user:
                 raise ValueError("User not found")
 
-            # Load rooms
+            # ---------------------------
+            # 2. Load rooms
+            # ---------------------------
             rooms = session.exec(select(Room).where(Room.id.in_(room_ids))).all()
 
-            if not rooms:
-                raise ValueError("Rooms not found")
+            if not rooms or len(rooms) != len(room_ids):
+                raise ValueError("Some rooms not found")
 
-            # Validate status
+            # ---------------------------
+            # 3. Validate room status
+            # ---------------------------
             for room in rooms:
                 if not room.is_active:
                     raise ValueError(f"Room {room.id} is inactive")
                 if not room.room_type.is_active:
-                    raise ValueError(f"Room type inactive")
+                    raise ValueError(f"Room type {room.room_type.id} is inactive")
                 if not room.room_type.property.is_active:
-                    raise ValueError(f"Property inactive")
+                    raise ValueError("Property is inactive")
 
-            # Validate capacity
+            # ---------------------------
+            # 4. Validate capacity
+            # ---------------------------
             self.validate_capacity(rooms, num_guests)
 
-            # Check availability
+            # ---------------------------
+            # 5. Check room availability
+            # ---------------------------
             for room_id in room_ids:
-                if not self.is_room_available(session, room_id, checkin, checkout):
-                    raise ValueError(f"Room {room_id} already booked")
+                if not self.is_room_available(session, room_id, checkin_dt, checkout_dt):
+                    raise ValueError(f"Room {room_id} is already booked in this period")
 
-            # Create booking
+            # ---------------------------
+            # 6. Create booking
+            # ---------------------------
             booking = Booking(
                 user_id=user_id,
                 booking_date=datetime.utcnow().date(),
@@ -91,26 +120,35 @@ class BookingService:
 
             booking = self.repo.create_booking(session, booking)
 
-            # Create booked rooms
+            # ---------------------------
+            # 7. Create booked rooms
+            # ---------------------------
             for room_id in room_ids:
                 booked = BookedRoom(
                     room_id=room_id,
                     booking_id=booking.id,
-                    checkin=checkin,
-                    checkout=checkout,
+                    checkin=checkin_dt,
+                    checkout=checkout_dt,
                     price=price,
                 )
                 self.repo.add_booked_room(session, booked)
 
+            session.commit()
             logger.info(f"[Booking] Created pending booking #{booking.id}")
+
             return booking
 
-    # ---------------- EXPIRE PENDING ----------------
-
+    # ========================================================
+    # EXPIRE PENDING BOOKINGS
+    # ========================================================
     def expire_pending_bookings(self, session: Session):
+        """Worker chạy định kỳ để hủy booking pending"""
         expired = self.repo.get_expired_pending_bookings(session)
 
         for booking in expired:
             booking.status = "expired"
 
         session.commit()
+
+        if expired:
+            logger.info(f"[Booking] Expired {len(expired)} pending bookings")

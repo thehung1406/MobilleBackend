@@ -17,7 +17,6 @@ class MailService:
     """
 
     def __init__(self):
-        # DÙNG ĐÚNG FIELD TRONG .env VÀ settings.py CỦA BẠN
         self.smtp_server = settings.MAIL_SERVER
         self.smtp_port = settings.MAIL_PORT
         self.username = settings.MAIL_USERNAME
@@ -37,10 +36,9 @@ class MailService:
 
             if not booking:
                 logger.error(f"[MailService] Booking not found: #{booking_id}")
-                return
+                return False
 
             user = session.get(User, booking.user_id)
-
             rooms = session.exec(
                 select(BookedRoom).where(BookedRoom.booking_id == booking_id)
             ).all()
@@ -54,20 +52,20 @@ class MailService:
                     html_body=html_body,
                 )
                 logger.info(f"[MailService] Email sent for booking #{booking_id}")
+                return True
 
             except Exception as e:
                 logger.error(f"[MailService] Failed to send email: {e}")
+                return False
 
     # =====================================================================
-    # TEMPLATE
+    # TEMPLATE EMAIL
     # =====================================================================
 
     def _build_booking_email_template(self, user, booking, rooms):
         room_list = "".join(
-            [
-                f"<li>Room {r.room_id}: {r.checkin} → {r.checkout}, Price: {r.price}</li>"
-                for r in rooms
-            ]
+            f"<li>Room {r.room_id}: {r.checkin} → {r.checkout}, Price: {r.price}</li>"
+            for r in rooms
         )
 
         return f"""
@@ -103,10 +101,20 @@ class MailService:
         msg["From"] = f"{self.sender_name} <{self.sender}>"
         msg["To"] = to
         msg["Subject"] = subject
-
         msg.attach(MIMEText(html_body, "html"))
 
-        # TLS
+        # ========== SSL MODE (Port 465) ==========
+        if self.use_ssl:
+            try:
+                with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port) as server:
+                    server.login(self.username, self.password)
+                    server.sendmail(self.sender, to, msg.as_string())
+                return
+            except Exception as e:
+                logger.error(f"[MailService] SSL Send error: {e}")
+                raise
+
+        # ========== TLS MODE (Port 587) ==========
         with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
             if self.use_tls:
                 server.starttls()
@@ -115,24 +123,35 @@ class MailService:
             server.sendmail(self.sender, to, msg.as_string())
 
     # =====================================================================
-    # SEND PAYMENT SUCCESS
+    # PAYMENT SUCCESS EMAIL
     # =====================================================================
 
     def send_payment_success(self, booking_id: int):
         with Session(engine) as session:
             booking = session.get(Booking, booking_id)
             if not booking:
-                return
+                logger.error(f"[MailService] Payment mail failed: booking #{booking_id} not found")
+                return False
 
             user = session.get(User, booking.user_id)
 
             html_body = f"""
-            <h2>Thanh toán thành công!</h2>
-            <p>Booking #{booking.id} của bạn đã được thanh toán.</p>
+            <html>
+            <body>
+                <h2>Thanh toán thành công!</h2>
+                <p>Booking #{booking.id} của bạn đã được thanh toán.</p>
+            </body>
+            </html>
             """
 
-            self._send_email(
-                to=user.email,
-                subject=f"Payment Success #{booking_id}",
-                html_body=html_body,
-            )
+            try:
+                self._send_email(
+                    to=user.email,
+                    subject=f"Payment Success #{booking_id}",
+                    html_body=html_body,
+                )
+                logger.info(f"[MailService] Payment email sent #{booking_id}")
+                return True
+            except Exception as e:
+                logger.error(f"[MailService] Failed to send payment email: {e}")
+                return False

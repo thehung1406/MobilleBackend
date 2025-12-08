@@ -17,7 +17,7 @@ from app.routers.auth import router as auth_router
 from app.routers.booking import router as booking_router
 from app.routers.payment import router as payment_router
 from app.routers.review import router as review_router
-from app.routers.search import router as search_router
+from app.routers.room_search import router as search_router
 from app.routers.webhook_payment import router as webhook_router
 
 # Admin Routers

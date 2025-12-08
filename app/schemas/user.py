@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from app.utils.enums import UserRole
 
+
 # ======================
 # BASE
 # ======================
@@ -21,12 +22,9 @@ class UserCreate(UserBase):
 # ======================
 # STAFF CREATE (SUPER ADMIN)
 # ======================
-class StaffCreate(BaseModel):
-    email: EmailStr
+class StaffCreate(UserBase):
     password: str
-    full_name: str
-    phone: Optional[str] = None
-    property_id: int   # staff MUST have property
+    property_id: int
 
 
 # ======================

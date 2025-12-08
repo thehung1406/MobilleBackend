@@ -1,9 +1,6 @@
 from typing import Optional
 from sqlmodel import SQLModel, Field, Relationship
 
-from app.models import Property
-from app.models.amenity import Amenity
-
 
 class PropertyAmenity(SQLModel, table=True):
     __tablename__ = "property_amenity"

@@ -13,26 +13,25 @@ from app.core.logger import logger
 
 class MailService:
     """
-    SMTP Mail Service — gửi email xác nhận booking cho khách.
-    Clean Architecture: service tách biệt khỏi route và task.
+    SMTP Mail Service — gửi email xác nhận booking và thanh toán.
     """
 
     def __init__(self):
-        self.smtp_server = settings.SMTP_SERVER
-        self.smtp_port = settings.SMTP_PORT
-        self.username = settings.SMTP_USERNAME
-        self.password = settings.SMTP_PASSWORD
-        self.sender = settings.MAIL_SENDER
+        # DÙNG ĐÚNG FIELD TRONG .env VÀ settings.py CỦA BẠN
+        self.smtp_server = settings.MAIL_SERVER
+        self.smtp_port = settings.MAIL_PORT
+        self.username = settings.MAIL_USERNAME
+        self.password = settings.MAIL_PASSWORD
+        self.sender = settings.MAIL_FROM
+        self.sender_name = settings.MAIL_FROM_NAME
+        self.use_tls = settings.MAIL_STARTTLS
+        self.use_ssl = settings.MAIL_SSL_TLS
 
     # =====================================================================
-    # SEND BOOKING CONFIRMATION EMAIL
+    # GỬI EMAIL XÁC NHẬN BOOKING
     # =====================================================================
 
     def send_booking_confirmation(self, booking_id: int):
-        """
-        Gửi email cho khách sau khi đặt phòng thành công.
-        """
-
         with Session(engine) as session:
             booking = session.get(Booking, booking_id)
 
@@ -46,15 +45,13 @@ class MailService:
                 select(BookedRoom).where(BookedRoom.booking_id == booking_id)
             ).all()
 
-            # Tạo HTML body
-            body = self._build_booking_email_template(user, booking, rooms)
+            html_body = self._build_booking_email_template(user, booking, rooms)
 
-            # SMTP send
             try:
                 self._send_email(
                     to=user.email,
                     subject=f"Booking Confirmation #{booking_id}",
-                    html_body=body,
+                    html_body=html_body,
                 )
                 logger.info(f"[MailService] Email sent for booking #{booking_id}")
 
@@ -62,14 +59,10 @@ class MailService:
                 logger.error(f"[MailService] Failed to send email: {e}")
 
     # =====================================================================
-    # INTERNAL TEMPLATE BUILDER
+    # TEMPLATE
     # =====================================================================
 
     def _build_booking_email_template(self, user, booking, rooms):
-        """
-        Tạo HTML email content đẹp.
-        """
-
         room_list = "".join(
             [
                 f"<li>Room {r.room_id}: {r.checkin} → {r.checkout}, Price: {r.price}</li>"
@@ -96,31 +89,34 @@ class MailService:
             </ul>
 
             <p>Cảm ơn bạn đã sử dụng dịch vụ!</p>
-            <p>— Hotel Booking System</p>
+            <p>— {self.sender_name}</p>
         </body>
         </html>
         """
 
     # =====================================================================
-    # SMTP CORE SENDER
+    # SMTP CORE
     # =====================================================================
 
     def _send_email(self, to: str, subject: str, html_body: str):
-        """
-        Gửi email HTML qua SMTP server.
-        """
-
         msg = MIMEMultipart()
-        msg["From"] = self.sender
+        msg["From"] = f"{self.sender_name} <{self.sender}>"
         msg["To"] = to
         msg["Subject"] = subject
 
         msg.attach(MIMEText(html_body, "html"))
 
+        # TLS
         with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-            server.starttls()
+            if self.use_tls:
+                server.starttls()
+
             server.login(self.username, self.password)
             server.sendmail(self.sender, to, msg.as_string())
+
+    # =====================================================================
+    # SEND PAYMENT SUCCESS
+    # =====================================================================
 
     def send_payment_success(self, booking_id: int):
         with Session(engine) as session:
@@ -130,7 +126,7 @@ class MailService:
 
             user = session.get(User, booking.user_id)
 
-            body = f"""
+            html_body = f"""
             <h2>Thanh toán thành công!</h2>
             <p>Booking #{booking.id} của bạn đã được thanh toán.</p>
             """
@@ -138,6 +134,5 @@ class MailService:
             self._send_email(
                 to=user.email,
                 subject=f"Payment Success #{booking_id}",
-                html_body=body,
+                html_body=html_body,
             )
-

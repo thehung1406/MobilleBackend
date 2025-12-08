@@ -1,5 +1,7 @@
 from typing import Optional
 from sqlmodel import SQLModel, Field, Relationship
+from app.models.user import User
+from app.models.property import Property
 
 
 class Review(SQLModel, table=True):

@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Optional
-
 from sqlmodel import SQLModel, Field, Relationship
 
 
@@ -15,4 +14,4 @@ class Payment(SQLModel, table=True):
     status: str = "pending"
     payment_time: Optional[datetime] = None
 
-    booking: "Booking" = Relationship(back_populates="payment")
+    booking: "Booking" = Relationship(back_populates="payments")

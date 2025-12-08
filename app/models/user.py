@@ -1,6 +1,7 @@
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, Enum as SQLEnum
+
 from app.utils.enums import UserRole
 
 
@@ -13,13 +14,11 @@ class User(SQLModel, table=True):
     full_name: str
     phone: Optional[str] = None
 
-    # Role: super_admin | staff | customer
     role: UserRole = Field(
-        default=UserRole.customer,
+        default=UserRole.CUSTOMER,
         sa_column=Column(SQLEnum(UserRole, name="user_role_enum"), nullable=False)
     )
 
-    # Staff belongs to a property (customer/super_admin = None)
     property_id: Optional[int] = Field(
         default=None,
         foreign_key="property.id",
@@ -28,6 +27,6 @@ class User(SQLModel, table=True):
 
     is_active: bool = True
 
-    # Relations
+    # Relationships
     bookings: List["Booking"] = Relationship(back_populates="user")
     reviews: List["Review"] = Relationship(back_populates="user")

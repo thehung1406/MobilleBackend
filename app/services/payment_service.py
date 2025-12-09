@@ -1,85 +1,70 @@
+import uuid
 from sqlmodel import Session
-from fastapi import HTTPException
-from datetime import datetime
-
-from app.models.payment import Payment
-from app.models.booking import Booking
 from app.repositories.payment_repo import PaymentRepository
+from app.repositories.booking_repo import BookingRepository
+from app.utils.qr_generator import generate_qr_base64
 from app.services.mail_service import MailService
-from app.utils.enums import BookingStatus  # nếu bạn có enum
-from app.core.logger import logger
+from app.models.booking import Booking
 
 
 class PaymentService:
 
-    def __init__(self):
-        self.repo = PaymentRepository()
-        self.mail = MailService()
-
-    # ============================================================
-    # CREATE PAYMENT (User click "Thanh toán")
-    # ============================================================
-    def create_payment(self, session: Session, booking_id: int, amount: float):
-
-        if amount <= 0:
-            raise HTTPException(400, "Amount must be > 0")
+    @staticmethod
+    def create_payment(session: Session, booking_id: int, amount: float, payment_type: str):
 
         booking = session.get(Booking, booking_id)
-
         if not booking:
-            raise HTTPException(404, "Booking not found")
+            raise Exception("Booking không tồn tại")
 
-        if booking.status != BookingStatus.PENDING.value:
-            raise HTTPException(400, "Booking is not pending")
-
-        payment = Payment(
+        payment = PaymentRepository.create(
+            session=session,
             booking_id=booking_id,
             amount=amount,
-            status="pending"
+            payment_type=payment_type
         )
 
-        payment = self.repo.create(session, payment)
+        payment_code = f"PAY-{uuid.uuid4().hex[:8].upper()}"
 
-        logger.info(f"[Payment] Created pending payment #{payment.id} for booking #{booking_id}")
+        # QR code chứa payment_code hoặc booking_id
+        qr_data = f"Thanh toán booking #{booking_id} | Code: {payment_code}"
+        qr_base64 = generate_qr_base64(qr_data)
 
-        return payment
+        return {
+            "payment_id": payment.id,
+            "booking_id": booking_id,
+            "amount": amount,
+            "payment_code": payment_code,
+            "qr_base64": qr_base64,
+            "status": "pending",
+        }
 
-    # ============================================================
-    # CONFIRM PAYMENT (Webhook từ cổng thanh toán)
-    # ============================================================
-    def confirm_webhook_payment(self, session: Session, payment_id: int):
-        payment = self.repo.get(session, payment_id)
+    @staticmethod
+    def confirm_payment(session: Session, payment_id: int):
 
+        payment = PaymentRepository.get_by_id(session, payment_id)
         if not payment:
-            raise HTTPException(404, "Payment not found")
-
-        # Prevent double payment
-        if payment.status == "paid":
-            logger.warning(f"[Payment] Payment #{payment.id} already processed")
-            return payment
+            raise Exception("Không tìm thấy payment")
 
         booking = session.get(Booking, payment.booking_id)
         if not booking:
-            raise HTTPException(404, "Booking related to payment not found")
+            raise Exception("Booking không tồn tại")
 
-        # Update payment
-        payment.status = "paid"
-        payment.payment_time = datetime.utcnow()
+        # update payment
+        PaymentRepository.update_status(session, payment_id, "success")
 
-        # Update booking status
-        booking.status = BookingStatus.PAID.value
-        booking.expires_at = None  # không cho expire nữa
-
+        # update booking
+        booking.status = "confirmed"
+        session.add(booking)
         session.commit()
-        session.refresh(payment)
-        session.refresh(booking)
 
-        logger.info(f"[Payment] Payment confirmed #{payment.id} - Booking #{booking.id} marked as PAID")
+        # gửi email xác nhận thanh toán
+        MailService().send_payment_success(booking.id)
 
-        # Send email
-        try:
-            self.mail.send_payment_success(booking.id)
-        except Exception as e:
-            logger.error(f"[Payment] Failed to send payment email: {e}")
+        # gửi email xác nhận booking
+        MailService().send_booking_confirmation(booking.id)
 
-        return payment
+        return {
+            "message": "Thanh toán thành công",
+            "booking_id": booking.id,
+            "status": "confirmed"
+        }

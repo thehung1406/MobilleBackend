@@ -1,55 +1,26 @@
 from sqlmodel import Session, select
+from datetime import date
 from app.models.room import Room
-from app.models.room_type import RoomType
+from app.models.booked_room import BookedRoom
 
 
 class RoomRepository:
 
-    # ---------------- CREATE ----------------
-    def create(self, session: Session, data: dict) -> Room:
-        obj = Room(**data)
-        session.add(obj)
-        session.commit()
-        session.refresh(obj)
-        return obj
+    @staticmethod
+    def get_by_room_type(session: Session, room_type_id: int):
+        statement = select(Room).where(Room.room_type_id == room_type_id)
+        return session.exec(statement).all()
 
-    # ---------------- GET ----------------
-    def get(self, session: Session, room_id: int) -> Room:
-        return session.get(Room, room_id)
-
-    # ---------------- LIST ALL ----------------
-    def list_all(self, session: Session):
-        return session.exec(select(Room)).all()
-
-    # ---------------- LIST BY PROPERTY (FIXED) ----------------
-    def list_by_property(self, session: Session, prop_id: int):
-        stmt = (
-            select(Room)
-            .join(RoomType, Room.room_type_id == RoomType.id)
-            .where(RoomType.property_id == prop_id)
+    @staticmethod
+    def is_available(session: Session, room_id: int, checkin: date, checkout: date) -> bool:
+        """
+        Trả về TRUE nếu không có booking nào trùng khoảng ngày
+        """
+        statement = (
+            select(BookedRoom)
+            .where(BookedRoom.room_id == room_id)
+            .where(BookedRoom.checkin < checkout)
+            .where(BookedRoom.checkout > checkin)
         )
-        return session.exec(stmt).all()
-
-    # ---------------- UPDATE ----------------
-    def update(self, session: Session, room_id: int, data: dict):
-        obj = self.get(session, room_id)
-        if not obj:
-            return None
-
-        for k, v in data.items():
-            setattr(obj, k, v)
-
-        session.add(obj)
-        session.commit()
-        session.refresh(obj)
-        return obj
-
-    # ---------------- DELETE ----------------
-    def delete(self, session: Session, room_id: int):
-        obj = self.get(session, room_id)
-        if not obj:
-            return False
-
-        session.delete(obj)
-        session.commit()
-        return True
+        conflict = session.exec(statement).first()
+        return conflict is None

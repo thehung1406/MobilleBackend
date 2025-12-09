@@ -15,7 +15,7 @@ class Property(SQLModel, table=True):
     name: str
     description: Optional[str] = None
     address: Optional[str] = None
-    province: Optional[str] = None
+
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     image: Optional[str] = None
@@ -25,7 +25,6 @@ class Property(SQLModel, table=True):
     checkout: Optional[str] = None
     contact: Optional[str] = None
 
-    cancel_policy: Optional[str] = None   # 🟩 THÊM DÒNG NÀY
 
     room_types: List["RoomType"] = Relationship(back_populates="property")
     amenities: List["PropertyAmenity"] = Relationship(back_populates="property")

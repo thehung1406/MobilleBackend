@@ -62,8 +62,18 @@ def cache_set(key: str, value: dict, expire_seconds: int = 30):
     if not r:
         return False  # fallback mode
 
+    def default_serializer(obj):
+        # Support Pydantic v2
+        if hasattr(obj, "model_dump"):
+            return obj.model_dump()
+        # Support Pydantic v1
+        if hasattr(obj, "dict"):
+            return obj.dict()
+        return str(obj)
+
     try:
-        r.set(key, json.dumps(value), ex=expire_seconds)
+        r.set(key, json.dumps(value, default=default_serializer), ex=expire_seconds)
         return True
     except ConnectionError:
         return False
+

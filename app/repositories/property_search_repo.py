@@ -1,40 +1,22 @@
+# app/repositories/property_search_repo.py
 from sqlmodel import Session, select
 from app.models.property import Property
 
 
 class PropertySearchRepository:
 
-    def search(self, session: Session, keyword: str):
-        """
-        Search khách sạn theo:
-        - name
-        - address
-        - province
-        (case insensitive, public search)
-        """
+    @staticmethod
+    def search_properties(session: Session, keyword: str):
+        pattern = f"%{keyword}%"
 
-        # Nếu người dùng không nhập gì → trả về toàn bộ active property
-        if not keyword or keyword.strip() == "":
-            stmt = (
-                select(Property)
-                .where(Property.is_active == True)
-                .order_by(Property.province, Property.name)
-            )
-            return session.exec(stmt).all()
-
-        key = f"%{keyword}%"
-
-        stmt = (
+        statement = (
             select(Property)
             .where(
-                Property.is_active == True,
-                (
-                    Property.name.ilike(key) |
-                    Property.address.ilike(key) |
-                    Property.province.ilike(key)
-                )
+                (Property.name.ilike(pattern)) |
+                (Property.address.ilike(pattern))
             )
-            .order_by(Property.province, Property.name)
+            .where(Property.is_active == True)
         )
 
-        return session.exec(stmt).all()
+        results = session.exec(statement).all()
+        return results

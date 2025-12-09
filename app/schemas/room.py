@@ -4,7 +4,6 @@ from typing import Optional
 
 class RoomBase(BaseModel):
     name: str
-    room_number: Optional[str] = None
     image: Optional[str] = None
     is_active: bool = True
 
@@ -15,7 +14,6 @@ class RoomCreate(RoomBase):
 
 class RoomUpdate(BaseModel):
     name: Optional[str] = None
-    room_number: Optional[str] = None
     image: Optional[str] = None
     is_active: Optional[bool] = None
 

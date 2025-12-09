@@ -14,10 +14,16 @@ class Booking(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
 
     user_id: int = Field(foreign_key="user.id")
-    booking_date: date
+
+    # 🟢 Thêm checkin - checkout cho toàn booking
+    checkin: date
+    checkout: date
+
+    booking_date: datetime = Field(default_factory=datetime.utcnow)
     num_guests: int = Field(default=1)
+
     status: str = Field(default="pending")
-    expires_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None  # Hết hạn chờ thanh toán
 
     # RELATIONS
     user: "User" = Relationship(back_populates="bookings")

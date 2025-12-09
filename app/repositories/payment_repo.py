@@ -1,50 +1,32 @@
-from sqlmodel import Session, select
+from sqlmodel import Session
 from app.models.payment import Payment
 
 
 class PaymentRepository:
 
-    # -------------------------
-    # CREATE PAYMENT
-    # -------------------------
-    def create(self, session: Session, payment: Payment) -> Payment:
+    @staticmethod
+    def create(session: Session, booking_id: int, amount: float, payment_type: str):
+        payment = Payment(
+            booking_id=booking_id,
+            amount=amount,
+            payment_type=payment_type,
+            status="pending"
+        )
         session.add(payment)
         session.commit()
         session.refresh(payment)
         return payment
 
-    # -------------------------
-    # GET PAYMENT BY ID
-    # -------------------------
-    def get(self, session: Session, payment_id: int) -> Payment | None:
+    @staticmethod
+    def get_by_id(session: Session, payment_id: int):
         return session.get(Payment, payment_id)
 
-    # -------------------------
-    # LIST PAYMENTS BY BOOKING
-    # -------------------------
-    def list_by_booking(self, session: Session, booking_id: int):
-        stmt = select(Payment).where(Payment.booking_id == booking_id)
-        return session.exec(stmt).all()
-
-    # -------------------------
-    # UPDATE PAYMENT OBJECT
-    # -------------------------
-    def update(self, session: Session, payment: Payment) -> Payment:
-        session.add(payment)
-        session.commit()
-        session.refresh(payment)
-        return payment
-
-    # -------------------------
-    # UPDATE PAYMENT STATUS ONLY
-    # -------------------------
-    def update_status(self, session: Session, payment_id: int, status: str):
-        payment = self.get(session, payment_id)
+    @staticmethod
+    def update_status(session: Session, payment_id: int, status: str):
+        payment = session.get(Payment, payment_id)
         if not payment:
             return None
-
         payment.status = status
-        session.add(payment)
         session.commit()
         session.refresh(payment)
         return payment

@@ -1,33 +1,35 @@
+# app/schemas/booked_room.py
 from datetime import date
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
 # -------------------------
-# BASE (nội bộ, không expose)
+# BASE (internal)
 # -------------------------
 class BookedRoomBase(BaseModel):
     room_id: int
     checkin: date
     checkout: date
-    price: float   # dùng float cho giá
 
 
 # -------------------------
-# CREATE (chỉ service dùng)
-# Client KHÔNG gọi API để tạo booked_room trực tiếp.
+# CREATE (BE dùng, không expose client)
 # -------------------------
 class BookedRoomCreate(BookedRoomBase):
-    booking_id: int   # BE sẽ truyền vào, không phải client
-    pass
+    booking_id: int
 
 
 # -------------------------
-# READ (trả ra FE)
+# READ (return to FE)
 # -------------------------
-class BookedRoomRead(BookedRoomBase):
+class BookedRoomRead(BaseModel):
     id: int
     booking_id: int
+    room_id: int
+    checkin: date
+    checkout: date
+
 
     class Config:
         from_attributes = True

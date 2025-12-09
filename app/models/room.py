@@ -10,14 +10,11 @@ class Room(SQLModel, table=True):
     __tablename__ = "room"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-
     name: str
-    room_number: Optional[str] = None     # 🆕 hiển thị số phòng
-    image: Optional[str] = None           # 🆕 ảnh phòng
-    is_active: bool = True                # 🆕 phòng có sử dụng hay không
-
+    is_active: bool = True
+    image: Optional[str] = None
     room_type_id: int = Field(foreign_key="room_type.id")
 
-    # RELATIONSHIPS
+    # RELATIONS
     room_type: "RoomType" = Relationship(back_populates="rooms")
     booked_rooms: List["BookedRoom"] = Relationship(back_populates="room")

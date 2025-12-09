@@ -1,154 +1,83 @@
-from datetime import datetime, timedelta
-from typing import List
-from sqlmodel import Session, select
-
-from app.core.logger import logger
-from app.core.database import engine
-from app.models.booking import Booking
-from app.models.booked_room import BookedRoom
-from app.models.room import Room
-from app.models.user import User
+from sqlmodel import Session,select
 from app.repositories.booking_repo import BookingRepository
+from app.repositories.booked_room_repo import BookedRoomRepository
+from app.repositories.room_repo import RoomRepository
+from app.utils.lock import acquire_room_lock, release_room_lock
+from app.models.room_type import RoomType
+from app.models.room import Room
 
 
 class BookingService:
-    def __init__(self):
-        self.repo = BookingRepository()
 
-    # ========================================================
-    # VALIDATION: DATE
-    # ========================================================
-    def validate_dates(self, checkin: str, checkout: str):
-        try:
-            checkin_dt = datetime.strptime(checkin, "%Y-%m-%d").date()
-            checkout_dt = datetime.strptime(checkout, "%Y-%m-%d").date()
-        except Exception:
-            raise ValueError("Invalid date format. Use YYYY-MM-DD")
+    @staticmethod
+    def create_booking(session: Session, user_id: int, payload):
+        checkin = payload.checkin
+        checkout = payload.checkout
 
-        if checkin_dt >= checkout_dt:
-            raise ValueError("Checkout date must be after checkin")
+        selected_rooms = []  # list các room_id đã chọn để lưu booked_room
+        locks = []  # danh sách lock đã acquire để rollback nếu lỗi
 
-        return checkin_dt, checkout_dt
+        # -----------------------------------------------
+        # 1. Lặp qua từng room_type FE yêu cầu
+        # -----------------------------------------------
+        for req in payload.rooms:
+            room_type = session.get(RoomType, req.room_type_id)
+            if not room_type:
+                raise Exception("RoomType không tồn tại")
 
-    # ========================================================
-    # VALIDATION: CAPACITY
-    # ========================================================
-    def validate_capacity(self, rooms: List[Room], num_guests: int):
-        total_capacity = sum(r.room_type.max_occupancy for r in rooms)
-        if num_guests > total_capacity:
-            raise ValueError("Number of guests exceeds room capacity")
+            # lấy toàn bộ phòng của room_type này
+            rooms = session.exec(
+                select(Room).where(Room.room_type_id == room_type.id)
+            ).all()
 
-    # ========================================================
-    # CHECK ROOM AVAILABILITY
-    # ========================================================
-    def is_room_available(self, session: Session, room_id: int, checkin, checkout):
-        """Kiểm tra phòng có trống không"""
-        return self.repo.get_overlapping_room(session, room_id, checkin, checkout) is None
-
-    # ========================================================
-    # CREATE BOOKING
-    # ========================================================
-    def process_booking(self, data: dict) -> Booking:
-        """
-        Main logic tạo booking:
-        - Validate user
-        - Validate phòng
-        - Validate ngày
-        - Check phòng có bị booked overlap không
-        - Tạo booking + booked room
-        """
-
-        user_id = data["user_id"]
-        room_ids: List[int] = data["room_ids"]
-        num_guests = data["num_guests"]
-        checkin = data["checkin"]
-        checkout = data["checkout"]
-        price = data["price"]
-
-        # --- Validate dates ---
-        checkin_dt, checkout_dt = self.validate_dates(checkin, checkout)
-
-        with Session(engine) as session:
-
-            # ---------------------------
-            # 1. Validate user
-            # ---------------------------
-            user = session.get(User, user_id)
-            if not user:
-                raise ValueError("User not found")
-
-            # ---------------------------
-            # 2. Load rooms
-            # ---------------------------
-            rooms = session.exec(select(Room).where(Room.id.in_(room_ids))).all()
-
-            if not rooms or len(rooms) != len(room_ids):
-                raise ValueError("Some rooms not found")
-
-            # ---------------------------
-            # 3. Validate room status
-            # ---------------------------
+            # tìm phòng trống
+            available_rooms = []
             for room in rooms:
-                if not room.is_active:
-                    raise ValueError(f"Room {room.id} is inactive")
-                if not room.room_type.is_active:
-                    raise ValueError(f"Room type {room.room_type.id} is inactive")
-                if not room.room_type.property.is_active:
-                    raise ValueError("Property is inactive")
+                if RoomRepository.is_available(session, room.id, checkin, checkout):
+                    available_rooms.append(room.id)
 
-            # ---------------------------
-            # 4. Validate capacity
-            # ---------------------------
-            self.validate_capacity(rooms, num_guests)
+            if len(available_rooms) < req.quantity:
+                raise Exception("Không đủ phòng trống")
 
-            # ---------------------------
-            # 5. Check room availability
-            # ---------------------------
-            for room_id in room_ids:
-                if not self.is_room_available(session, room_id, checkin_dt, checkout_dt):
-                    raise ValueError(f"Room {room_id} is already booked in this period")
+            # lock từng phòng
+            for i in range(req.quantity):
+                room_id = available_rooms[i]
+                ok = acquire_room_lock(room_id)
+                if not ok:
+                    raise Exception("Phòng đang được đặt bởi khách khác")
+                locks.append(room_id)
+                selected_rooms.append(room_id)
 
-            # ---------------------------
-            # 6. Create booking
-            # ---------------------------
-            booking = Booking(
-                user_id=user_id,
-                booking_date=datetime.utcnow().date(),
-                status="pending",
-                expires_at=datetime.utcnow() + timedelta(minutes=15)
+        # -----------------------------------------------
+        # 2. Tạo booking record
+        # -----------------------------------------------
+        booking = BookingRepository.create(
+            session, user_id, checkin, checkout, payload.num_guests
+        )
+
+        # -----------------------------------------------
+        # 3. Tạo booked_room record
+        # -----------------------------------------------
+        for room_id in selected_rooms:
+            BookedRoomRepository.create(
+                session, booking.id, room_id, checkin, checkout
             )
 
-            booking = self.repo.create_booking(session, booking)
+        # -----------------------------------------------
+        # 4. Tính tổng tiền
+        # -----------------------------------------------
+        nights = (checkout - checkin).days
+        total_amount = 0
+        for req in payload.rooms:
+            rt = session.get(RoomType, req.room_type_id)
+            total_amount += rt.price * nights * req.quantity
 
-            # ---------------------------
-            # 7. Create booked rooms
-            # ---------------------------
-            for room_id in room_ids:
-                booked = BookedRoom(
-                    room_id=room_id,
-                    booking_id=booking.id,
-                    checkin=checkin_dt,
-                    checkout=checkout_dt,
-                    price=price,
-                )
-                self.repo.add_booked_room(session, booked)
-
-            session.commit()
-            logger.info(f"[Booking] Created pending booking #{booking.id}")
-
-            return booking
-
-    # ========================================================
-    # EXPIRE PENDING BOOKINGS
-    # ========================================================
-    def expire_pending_bookings(self, session: Session):
-        """Worker chạy định kỳ để hủy booking pending"""
-        expired = self.repo.get_expired_pending_bookings(session)
-
-        for booking in expired:
-            booking.status = "expired"
-
-        session.commit()
-
-        if expired:
-            logger.info(f"[Booking] Expired {len(expired)} pending bookings")
+        # -----------------------------------------------
+        # 5. Trả kết quả FE → bước tiếp theo là payment
+        # -----------------------------------------------
+        return {
+            "booking_id": booking.id,
+            "amount": total_amount,
+            "expires_at": booking.expires_at,
+            "status": "pending"
+        }

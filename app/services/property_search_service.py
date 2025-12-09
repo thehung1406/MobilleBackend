@@ -1,36 +1,39 @@
-from fastapi import HTTPException
+# app/services/property_search_service.py
 from sqlmodel import Session
-
 from app.repositories.property_search_repo import PropertySearchRepository
+from app.schemas.property_search import PropertyItem, PropertySearchResponse
+from app.utils.redis_cache import r, make_key, cache_get, cache_set
 
 
 class PropertySearchService:
 
-    def __init__(self):
-        self.repo = PropertySearchRepository()
+    @staticmethod
+    def search(session: Session, keyword: str) -> PropertySearchResponse:
+        # -------------------
+        # REDIS CACHE CHECK
+        # -------------------
+        cache_key = make_key("search_property", {"keyword": keyword})
+        cached = cache_get(cache_key)
 
-    def search_properties(self, session: Session, keyword: str):
+        if cached:
+            return PropertySearchResponse(results=cached)
 
-        # -----------------------------------------
-        # 1. Normalize keyword
-        # -----------------------------------------
-        if not keyword or not keyword.strip():
-            raise HTTPException(400, "Keyword must not be empty")
+        # -------------------
+        # DB QUERY
+        # -------------------
+        properties = PropertySearchRepository.search_properties(
+            session=session,
+            keyword=keyword
+        )
 
-        keyword = keyword.strip().lower()
+        results = [
+            PropertyItem.from_orm(p)
+            for p in properties
+        ]
 
-        # -----------------------------------------
-        # 2. Query DB
-        # -----------------------------------------
-        results = self.repo.search(session, keyword)
+        # -------------------
+        # SAVE CACHE
+        # -------------------
+        cache_set(cache_key, results, expire_seconds=60 * 10)
 
-        # -----------------------------------------
-        # 3. If no results
-        # -----------------------------------------
-        if not results:
-            return []  # FE sẽ show "Không tìm thấy khách sạn"
-
-        # -----------------------------------------
-        # 4. Return result list
-        # -----------------------------------------
-        return results
+        return PropertySearchResponse(results=results)

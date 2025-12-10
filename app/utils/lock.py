@@ -1,7 +1,7 @@
 import redis
-import time
 from app.core.config import settings
 
+# Redis DB2 dành riêng cho lock
 r = redis.Redis(
     host=settings.REDIS_HOST,
     port=settings.REDIS_PORT,
@@ -12,10 +12,24 @@ r = redis.Redis(
 LOCK_EXPIRE = 60 * 15  # 15 phút
 
 
-def acquire_room_lock(room_id: int) -> bool:
-    key = f"lock:room:{room_id}"
+def make_lock_key(room_id: int, checkin, checkout):
+    """
+    Lock theo:
+      - room_id
+      - checkin (YYYY-MM-DD)
+      - checkout (YYYY-MM-DD)
+    → Người khác đặt ngày khác vẫn OK
+    """
+    return f"lock:room:{room_id}:{checkin}:{checkout}"
+
+
+def acquire_room_lock(room_id: int, checkin, checkout) -> bool:
+    """Đặt lock, nếu tồn tại → phòng đang có người giữ"""
+    key = make_lock_key(room_id, checkin, checkout)
     return r.set(key, "1", nx=True, ex=LOCK_EXPIRE)
 
 
-def release_room_lock(room_id: int):
-    r.delete(f"lock:room:{room_id}")
+def release_room_lock(room_id: int, checkin, checkout):
+    """Gỡ lock đúng ngày"""
+    key = make_lock_key(room_id, checkin, checkout)
+    r.delete(key)

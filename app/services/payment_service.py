@@ -1,17 +1,20 @@
 import uuid
+from datetime import datetime
 from sqlmodel import Session
+
+from app.models import Payment
+from app.repositories.booked_room_repo import BookedRoomRepository
 from app.repositories.payment_repo import PaymentRepository
-from app.repositories.booking_repo import BookingRepository
+from app.models.booking import Booking
+from app.utils.lock import release_room_lock
 from app.utils.qr_generator import generate_qr_base64
 from app.services.mail_service import MailService
-from app.models.booking import Booking
 
 
 class PaymentService:
 
     @staticmethod
     def create_payment(session: Session, booking_id: int, amount: float, payment_type: str):
-
         booking = session.get(Booking, booking_id)
         if not booking:
             raise Exception("Booking không tồn tại")
@@ -24,8 +27,6 @@ class PaymentService:
         )
 
         payment_code = f"PAY-{uuid.uuid4().hex[:8].upper()}"
-
-        # QR code chứa payment_code hoặc booking_id
         qr_data = f"Thanh toán booking #{booking_id} | Code: {payment_code}"
         qr_base64 = generate_qr_base64(qr_data)
 
@@ -35,33 +36,56 @@ class PaymentService:
             "amount": amount,
             "payment_code": payment_code,
             "qr_base64": qr_base64,
-            "status": "pending",
+            "status": "pending"
         }
 
     @staticmethod
     def confirm_payment(session: Session, payment_id: int):
+        mailer = MailService()
 
-        payment = PaymentRepository.get_by_id(session, payment_id)
+        payment = session.get(Payment, payment_id)
         if not payment:
-            raise Exception("Không tìm thấy payment")
+            raise Exception("Payment không tồn tại")
 
-        booking = session.get(Booking, payment.booking_id)
+        booking = payment.booking
         if not booking:
             raise Exception("Booking không tồn tại")
 
-        # update payment
-        PaymentRepository.update_status(session, payment_id, "success")
+        # Booking expired → unlock + cancel
+        if booking.expires_at < datetime.utcnow():
+            for rid in booking.selected_rooms:
+                release_room_lock(rid, booking.checkin, booking.checkout)
 
-        # update booking
+            booking.status = "cancelled"
+            session.commit()
+            raise Exception("Booking đã hết hạn — không thể thanh toán")
+
+        # Update payment
+        payment.status = "completed"
+
+        # Create booked_room
+        for rid in booking.selected_rooms:
+            BookedRoomRepository.create(
+                session=session,
+                booking_id=booking.id,
+                room_id=rid,
+                checkin=booking.checkin,
+                checkout=booking.checkout
+            )
+
+            release_room_lock(rid, booking.checkin, booking.checkout)
+
         booking.status = "confirmed"
-        session.add(booking)
         session.commit()
 
-        # gửi email xác nhận thanh toán
-        MailService().send_payment_success(booking.id)
-
-        # gửi email xác nhận booking
-        MailService().send_booking_confirmation(booking.id)
+        # ------------------------------------------------
+        # ✔ GỬI MAIL SAU KHI THANH TOÁN THÀNH CÔNG
+        # ------------------------------------------------
+        try:
+            mailer.send_booking_confirmation(booking.id)
+            mailer.send_payment_success(booking.id)
+        except Exception as e:
+            print("Email sending failed:", e)
 
         return {
             "message": "Thanh toán thành công",

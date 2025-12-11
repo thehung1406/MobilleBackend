@@ -14,7 +14,7 @@ class RoomRepository:
     @staticmethod
     def is_available(session: Session, room_id: int, checkin: date, checkout: date) -> bool:
         """
-        Trả về TRUE nếu không có booking nào trùng khoảng ngày
+        TRUE nếu không có booking nào trùng ngày
         """
         statement = (
             select(BookedRoom)

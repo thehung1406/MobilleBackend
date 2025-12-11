@@ -1,83 +1,97 @@
-from sqlmodel import Session,select
+from sqlmodel import Session, select
+from datetime import datetime
+
+from app.models import Booking, BookedRoom
 from app.repositories.booking_repo import BookingRepository
 from app.repositories.booked_room_repo import BookedRoomRepository
 from app.repositories.room_repo import RoomRepository
-from app.utils.lock import acquire_room_lock, release_room_lock
-from app.models.room_type import RoomType
 from app.models.room import Room
+from app.utils.lock import acquire_room_lock, release_room_lock
 
 
 class BookingService:
 
     @staticmethod
     def create_booking(session: Session, user_id: int, payload):
+
         checkin = payload.checkin
         checkout = payload.checkout
+        selected_rooms = payload.room_ids
 
-        selected_rooms = []  # list các room_id đã chọn để lưu booked_room
-        locks = []  # danh sách lock đã acquire để rollback nếu lỗi
+        if not selected_rooms:
+            raise Exception("Vui lòng chọn ít nhất 1 phòng")
 
-        # -----------------------------------------------
-        # 1. Lặp qua từng room_type FE yêu cầu
-        # -----------------------------------------------
-        for req in payload.rooms:
-            room_type = session.get(RoomType, req.room_type_id)
-            if not room_type:
-                raise Exception("RoomType không tồn tại")
+        # CHECK & LOCK THEO NGÀY
+        for room_id in selected_rooms:
 
-            # lấy toàn bộ phòng của room_type này
-            rooms = session.exec(
-                select(Room).where(Room.room_type_id == room_type.id)
-            ).all()
+            if not RoomRepository.is_available(session, room_id, checkin, checkout):
+                raise Exception(f"Phòng {room_id} không còn trống")
 
-            # tìm phòng trống
-            available_rooms = []
-            for room in rooms:
-                if RoomRepository.is_available(session, room.id, checkin, checkout):
-                    available_rooms.append(room.id)
+            ok = acquire_room_lock(room_id, checkin, checkout)
+            if not ok:
+                raise Exception(f"Phòng {room_id} đang được người khác giữ")
 
-            if len(available_rooms) < req.quantity:
-                raise Exception("Không đủ phòng trống")
-
-            # lock từng phòng
-            for i in range(req.quantity):
-                room_id = available_rooms[i]
-                ok = acquire_room_lock(room_id)
-                if not ok:
-                    raise Exception("Phòng đang được đặt bởi khách khác")
-                locks.append(room_id)
-                selected_rooms.append(room_id)
-
-        # -----------------------------------------------
-        # 2. Tạo booking record
-        # -----------------------------------------------
+        # Tạo booking pending
         booking = BookingRepository.create(
-            session, user_id, checkin, checkout, payload.num_guests
+            session=session,
+            user_id=user_id,
+            checkin=checkin,
+            checkout=checkout,
+            num_guests=payload.num_guests,
+            selected_rooms=selected_rooms
         )
 
-        # -----------------------------------------------
-        # 3. Tạo booked_room record
-        # -----------------------------------------------
-        for room_id in selected_rooms:
-            BookedRoomRepository.create(
-                session, booking.id, room_id, checkin, checkout
-            )
-
-        # -----------------------------------------------
-        # 4. Tính tổng tiền
-        # -----------------------------------------------
+        # Tính tiền
         nights = (checkout - checkin).days
-        total_amount = 0
-        for req in payload.rooms:
-            rt = session.get(RoomType, req.room_type_id)
-            total_amount += rt.price * nights * req.quantity
+        total = 0
+        for rid in selected_rooms:
+            room = session.get(Room, rid)
+            total += room.room_type.price * nights
 
-        # -----------------------------------------------
-        # 5. Trả kết quả FE → bước tiếp theo là payment
-        # -----------------------------------------------
         return {
             "booking_id": booking.id,
-            "amount": total_amount,
+            "rooms": selected_rooms,
+            "amount": total,
             "expires_at": booking.expires_at,
             "status": "pending"
         }
+
+
+    @staticmethod
+    def get_my_bookings(session: Session, user_id: int):
+        return BookingRepository.get_by_user(session, user_id)
+
+
+    @staticmethod
+    def cancel_booking(session: Session, booking_id: int, user_id: int):
+
+        booking = session.get(Booking, booking_id)
+        if not booking:
+            raise Exception("Booking không tồn tại")
+
+        if booking.user_id != user_id:
+            raise Exception("Không có quyền hủy booking này")
+
+        # Nếu booking pending → release lock đúng ngày
+        if booking.status == "pending":
+            for rid in booking.selected_rooms:
+                release_room_lock(rid, booking.checkin, booking.checkout)
+
+            booking.status = "cancelled"
+            session.commit()
+            return {"status": "cancelled"}
+
+        # Nếu booking confirmed → xóa booked room
+        if booking.status == "confirmed":
+            rows = session.exec(
+                select(BookedRoom).where(BookedRoom.booking_id == booking.id)
+            ).all()
+
+            for row in rows:
+                session.delete(row)
+
+            booking.status = "cancelled"
+            session.commit()
+            return {"status": "cancelled"}
+
+        return {"status": booking.status}

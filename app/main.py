@@ -23,6 +23,8 @@ from app.routers.payment import router as payment_router
 from app.routers.property_detail import router as property_detail_router
 from app.routers.property_search import router as property_search_router
 from app.routers.room import router as rooms_router   # check availability
+from app.routers.property import router as property_router   # check availability
+from app.routers.review import router as review_router   # check availability
 
 # -----------------------------
 # Import Routers (Admin)
@@ -75,6 +77,8 @@ def create_app() -> FastAPI:
     app.include_router(property_search_router)
     app.include_router(property_detail_router)
     app.include_router(rooms_router)
+    app.include_router(property_router)
+    app.include_router(review_router)
 
 
 

@@ -1,24 +1,20 @@
-from pydantic import BaseModel, Field
 from typing import Optional
+from pydantic import BaseModel
 
 
-class ReviewCreate(BaseModel):
+class ReviewBase(BaseModel):
+    rating: int
+    description: Optional[str] = None
+
+
+class ReviewCreate(ReviewBase):
     property_id: int
-    rating: int = Field(..., ge=1, le=5)
-    description: Optional[str] = None
 
 
-class ReviewUpdate(BaseModel):
-    rating: Optional[int] = Field(None, ge=1, le=5)
-    description: Optional[str] = None
-
-
-class ReviewRead(BaseModel):
+class ReviewRead(ReviewBase):
     id: int
     user_id: int
-    property_id: int
-    rating: int
-    description: Optional[str]
+    user_name: Optional[str] = None
 
     class Config:
         from_attributes = True

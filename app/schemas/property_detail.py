@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional
+from app.schemas.review import ReviewRead
 
 
 class RoomRead(BaseModel):
@@ -36,7 +37,9 @@ class PropertyDetailRead(BaseModel):
     checkin: Optional[str]
     checkout: Optional[str]
     contact: Optional[str]
+
     room_types: List[RoomTypeWithRoomsRead]
+    reviews: List[ReviewRead] = []   # 🔥 ADD THIS
 
     class Config:
         from_attributes = True

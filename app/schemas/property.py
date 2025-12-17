@@ -15,6 +15,7 @@ class PropertyBase(BaseModel):
     checkin: Optional[str] = None
     checkout: Optional[str] = None
     contact: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 

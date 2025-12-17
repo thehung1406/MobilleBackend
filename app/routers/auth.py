@@ -46,6 +46,17 @@ def list_users(
     return auth_service.list_users(session)
 
 
+@router.get("/me", response_model=UserRead)
+def get_current_user_profile(
+    user: UserRead = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Get current user's profile.
+    """
+    return auth_service.get_current_user_profile(session, user.id)
+
+
 @router.patch("/profile", response_model=UserRead)
 def update_profile(
     data: UserUpdate,

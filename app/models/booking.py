@@ -1,6 +1,6 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import date, datetime
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, Column, JSON
 
 if TYPE_CHECKING:
     from .user import User
@@ -12,18 +12,21 @@ class Booking(SQLModel, table=True):
     __tablename__ = "booking"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-
     user_id: int = Field(foreign_key="user.id")
 
-    # 🟢 Thêm checkin - checkout cho toàn booking
     checkin: date
     checkout: date
-
     booking_date: datetime = Field(default_factory=datetime.utcnow)
-    num_guests: int = Field(default=1)
+    num_guests: int = 1
 
-    status: str = Field(default="pending")
-    expires_at: Optional[datetime] = None  # Hết hạn chờ thanh toán
+    status: str = Field(default="pending")  # pending | confirmed | cancelled
+    expires_at: Optional[datetime] = None
+
+    # 🔥 DANH SÁCH ROOM MÀ USER CHỌN
+    selected_rooms: List[int] = Field(
+        default_factory=list,
+        sa_column=Column(JSON)
+    )
 
     # RELATIONS
     user: "User" = Relationship(back_populates="bookings")

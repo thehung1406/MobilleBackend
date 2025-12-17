@@ -1,15 +1,10 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from datetime import date, datetime
 from typing import List, Optional
 
 
-class RoomRequest(BaseModel):
-    room_type_id: int
-    quantity: int = Field(..., gt=0)
-
-
 class BookingCreate(BaseModel):
-    rooms: List[RoomRequest]
+    room_ids: List[int]
     checkin: date
     checkout: date
     num_guests: int = 1
@@ -28,8 +23,8 @@ class BookedRoomRead(BaseModel):
 class BookingRead(BaseModel):
     id: int
     user_id: int
-    booking_date: date
     status: str
+    selected_rooms: List[int]
     expires_at: Optional[datetime]
     booked_rooms: List[BookedRoomRead]
 

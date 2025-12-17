@@ -131,3 +131,16 @@ class AuthService:
         session.commit()
         session.refresh(user)
         return user
+
+    # =====================================================
+    # GET CURRENT USER PROFILE
+    # =====================================================
+    def get_current_user_profile(self, session: Session, user_id: int):
+        """Lấy thông tin của người dùng đang đăng nhập"""
+        user = self.repo.get_user(session, user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        return user

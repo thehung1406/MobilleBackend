@@ -1,9 +1,7 @@
 from sqlmodel import Session, select
-from datetime import datetime
 
 from app.models import Booking, BookedRoom
 from app.repositories.booking_repo import BookingRepository
-from app.repositories.booked_room_repo import BookedRoomRepository
 from app.repositories.room_repo import RoomRepository
 from app.models.room import Room
 from app.utils.lock import acquire_room_lock, release_room_lock
@@ -13,7 +11,6 @@ class BookingService:
 
     @staticmethod
     def create_booking(session: Session, user_id: int, payload):
-
         checkin = payload.checkin
         checkout = payload.checkout
         selected_rooms = payload.room_ids
@@ -21,25 +18,35 @@ class BookingService:
         if not selected_rooms:
             raise Exception("Vui lòng chọn ít nhất 1 phòng")
 
+        locked_rooms = []
+
         # CHECK & LOCK THEO NGÀY
-        for room_id in selected_rooms:
+        try:
+            for room_id in selected_rooms:
+                if not RoomRepository.is_available(session, room_id, checkin, checkout):
+                    raise Exception(f"Phòng {room_id} không còn trống")
 
-            if not RoomRepository.is_available(session, room_id, checkin, checkout):
-                raise Exception(f"Phòng {room_id} không còn trống")
+                ok = acquire_room_lock(room_id, checkin, checkout)
+                if not ok:
+                    raise Exception(f"Phòng {room_id} đang được người khác giữ")
 
-            ok = acquire_room_lock(room_id, checkin, checkout)
-            if not ok:
-                raise Exception(f"Phòng {room_id} đang được người khác giữ")
+                locked_rooms.append(room_id)
 
-        # Tạo booking pending
-        booking = BookingRepository.create(
-            session=session,
-            user_id=user_id,
-            checkin=checkin,
-            checkout=checkout,
-            num_guests=payload.num_guests,
-            selected_rooms=selected_rooms
-        )
+            # Tạo booking pending
+            booking = BookingRepository.create(
+                session=session,
+                user_id=user_id,
+                checkin=checkin,
+                checkout=checkout,
+                num_guests=payload.num_guests,
+                selected_rooms=selected_rooms
+            )
+
+        except Exception:
+            # rollback lock nếu fail giữa chừng
+            for rid in locked_rooms:
+                release_room_lock(rid, checkin, checkout)
+            raise
 
         # Tính tiền
         nights = (checkout - checkin).days
@@ -53,18 +60,15 @@ class BookingService:
             "rooms": selected_rooms,
             "amount": total,
             "expires_at": booking.expires_at,
-            "status": "pending"
+            "status": booking.status
         }
-
 
     @staticmethod
     def get_my_bookings(session: Session, user_id: int):
         return BookingRepository.get_by_user(session, user_id)
 
-
     @staticmethod
     def cancel_booking(session: Session, booking_id: int, user_id: int):
-
         booking = session.get(Booking, booking_id)
         if not booking:
             raise Exception("Booking không tồn tại")

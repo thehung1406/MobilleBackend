@@ -1,10 +1,5 @@
 from celery import Celery
-from celery.schedules import crontab
 from app.core.config import settings
-
-# ---------------------------------------------------------
-# Celery App
-# ---------------------------------------------------------
 
 celery_app = Celery(
     "booking_system",
@@ -12,26 +7,19 @@ celery_app = Celery(
     backend=settings.REDIS_URL,
 )
 
-# Auto-discover tasks
+# Auto-discover tasks (QUAN TRỌNG)
 celery_app.autodiscover_tasks(["app.worker"])
 
-
-# ---------------------------------------------------------
-# Celery Beat Schedule
-# ---------------------------------------------------------
+# Beat schedule
 celery_app.conf.beat_schedule = {
-    "cleanup-expired-bookings-every-5-minutes": {
+    "cleanup-expired-bookings-every-30-seconds": {
         "task": "cleanup_expired_bookings",
-        "schedule": 300,  # 5 phút
+        "schedule": 30,
     },
 }
 
 celery_app.conf.timezone = "Asia/Ho_Chi_Minh"
 
-
-# ---------------------------------------------------------
-# Optional tuning
-# ---------------------------------------------------------
 celery_app.conf.update(
     task_track_started=True,
     worker_prefetch_multiplier=1,

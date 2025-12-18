@@ -8,7 +8,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./app:/app/app   # Hot reload
+      - ./app:/app/app
       - ./migrations:/app/migrations
       - ./alembic.ini:/app/alembic.ini
     depends_on:
@@ -17,7 +17,7 @@ services:
     networks:
       - backend
 
-  celery:
+  celery_worker:
     build:
       context: .
       dockerfile: Dockerfile
@@ -28,6 +28,20 @@ services:
       - ./app:/app/app
     depends_on:
       - postgres
+      - redis
+    networks:
+      - backend
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: celery_beat
+    command: celery -A app.worker.celery_app beat --loglevel=info
+    env_file: .env
+    volumes:
+      - ./app:/app/app
+    depends_on:
       - redis
     networks:
       - backend

@@ -1,6 +1,6 @@
 from sqlmodel import Session, select
-from app.models.booking import Booking
 from datetime import datetime, timedelta
+from app.models.booking import Booking
 
 
 class BookingRepository:
@@ -14,7 +14,7 @@ class BookingRepository:
             num_guests=num_guests,
             selected_rooms=selected_rooms,
             status="pending",
-            expires_at=datetime.utcnow() + timedelta(minutes=15)
+            expires_at=datetime.utcnow() + timedelta(minutes=2)  # ✅ 2 phút
         )
 
         session.add(booking)

@@ -22,7 +22,7 @@ def get_available_rooms(
     ),
     session: Session = Depends(get_session)
 ):
-    # Auto default nếu FE không truyền
+
     if checkin is None:
         checkin = date.today()
     if checkout is None:

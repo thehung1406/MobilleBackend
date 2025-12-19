@@ -17,11 +17,9 @@ class AuthService:
     def __init__(self):
         self.repo = AuthRepository()
 
-    # =====================================================
-    # REGISTER CUSTOMER
-    # =====================================================
+
     def register(self, session: Session, data):
-        """CUSTOMER đăng ký tài khoản"""
+
 
         if self.repo.get_user_by_email(session, data.email):
             raise HTTPException(
@@ -39,9 +37,7 @@ class AuthService:
 
         return self.repo.create_user(session, new_user)
 
-    # =====================================================
-    # LOGIN
-    # =====================================================
+
     def login(self, session: Session, email: str, password: str):
 
         user = self.repo.get_user_by_email(session, email)
@@ -80,11 +76,9 @@ class AuthService:
             }
         }
 
-    # =====================================================
-    # CREATE STAFF (SUPER ADMIN)
-    # =====================================================
+
     def create_staff(self, session: Session, data):
-        """Super Admin tạo Staff và gán property_id"""
+
 
         if self.repo.get_user_by_email(session, data.email):
             raise HTTPException(
@@ -103,16 +97,12 @@ class AuthService:
 
         return self.repo.create_user(session, staff)
 
-    # =====================================================
-    # LIST USERS
-    # =====================================================
+
     def list_users(self, session: Session):
-        """Super Admin gọi danh sách toàn bộ user"""
+
         return self.repo.list_users(session)
 
-    # =====================================================
-    # UPDATE PROFILE
-    # =====================================================
+
     def update_profile(self, session: Session, user: User, data):
         changed = False
 
@@ -125,18 +115,16 @@ class AuthService:
             changed = True
 
         if not changed:
-            return user  # Không thay đổi gì
+            return user
 
         session.add(user)
         session.commit()
         session.refresh(user)
         return user
 
-    # =====================================================
-    # GET CURRENT USER PROFILE
-    # =====================================================
+
     def get_current_user_profile(self, session: Session, user_id: int):
-        """Lấy thông tin của người dùng đang đăng nhập"""
+
         user = self.repo.get_user(session, user_id)
         if not user:
             raise HTTPException(

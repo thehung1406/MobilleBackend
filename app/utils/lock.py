@@ -8,7 +8,7 @@ r = redis.Redis(
     decode_responses=True
 )
 
-LOCK_EXPIRE = 60 * 15  # fail-safe
+LOCK_EXPIRE = 60 * 15
 
 def make_lock_key(room_id: int, checkin, checkout):
     return f"lock:room:{room_id}:{checkin}:{checkout}"

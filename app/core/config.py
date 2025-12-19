@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     ALGORITHM: str
 
     DATABASE_URL: str
-    REDIS_URL: str  # bạn vẫn giữ lại để dùng cho Celery nếu cần
+    REDIS_URL: str
 
     SUPERUSER_EMAIL: str
     SUPERUSER_PASSWORD: str
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str
 
-    # ⭐ THÊM (bắt buộc cho Redis Cache)
+
     REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
 

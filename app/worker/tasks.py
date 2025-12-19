@@ -20,7 +20,7 @@ def cleanup_expired_bookings():
         expired_list = session.exec(stmt).all()
 
         for b in expired_list:
-            # 🔑 FIX: selected_rooms có thể = None
+
             rooms = b.selected_rooms or []
 
             for rid in rooms:

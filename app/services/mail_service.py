@@ -14,10 +14,8 @@ from app.core.logger import logger
 
 
 class MailService:
-    """
-    SMTP Mail Service — gửi email xác nhận booking và thanh toán.
-    Không thay đổi cấu trúc model/repo/service của project.
-    """
+
+
 
     def __init__(self):
         self.smtp_server = settings.MAIL_SERVER
@@ -29,9 +27,7 @@ class MailService:
         self.use_tls = settings.MAIL_STARTTLS
         self.use_ssl = settings.MAIL_SSL_TLS
 
-    # =====================================================================
-    # SEND BOOKING CONFIRMATION
-    # =====================================================================
+
 
     def send_booking_confirmation(self, booking_id: int):
         with Session(engine) as session:
@@ -59,9 +55,7 @@ class MailService:
                 logger.error(f"[MailService] Failed to send booking email: {e}")
                 return False
 
-    # =====================================================================
-    # BOOKING TEMPLATE (HTML đẹp)
-    # =====================================================================
+
 
     def _build_booking_email_template(self, session, user, booking, rooms):
         room_items = ""
@@ -118,9 +112,7 @@ class MailService:
         """
         return html
 
-    # =====================================================================
-    # SEND PAYMENT SUCCESS EMAIL
-    # =====================================================================
+
 
     def send_payment_success(self, booking_id: int):
         with Session(engine) as session:
@@ -156,9 +148,7 @@ class MailService:
                 logger.error(f"[MailService] Failed to send payment email: {e}")
                 return False
 
-    # =====================================================================
-    # SMTP CORE
-    # =====================================================================
+
 
     def _send_email(self, to: str, subject: str, html_body: str):
         msg = MIMEMultipart()
@@ -167,14 +157,14 @@ class MailService:
         msg["Subject"] = subject
         msg.attach(MIMEText(html_body, "html"))
 
-        # SSL (Port 465)
+
         if self.use_ssl:
             with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port) as server:
                 server.login(self.username, self.password)
                 server.sendmail(self.sender, to, msg.as_string())
             return
 
-        # TLS (Port 587)
+
         with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
             if self.use_tls:
                 server.starttls()

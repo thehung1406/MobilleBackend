@@ -23,9 +23,7 @@ def list_reviews(property_id: int, session: Session = Depends(get_session)):
 
 
 
-# ----------------------------------------------------
-# XÓA review (only STAFF or ADMIN)
-# ----------------------------------------------------
+
 @router.delete("/{review_id}")
 def delete_review(
     review_id: int,

@@ -13,9 +13,9 @@ class Payment(SQLModel, table=True):
     booking_id: int = Field(foreign_key="booking.id")
 
     amount: float
-    payment_type: str      # momo / vnpay / stripe / cash
+    payment_type: str
     status: str = "pending"
     payment_time: Optional[datetime] = None
 
-    # RELATIONS
+
     booking: "Booking" = Relationship(back_populates="payment")

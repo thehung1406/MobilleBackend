@@ -51,9 +51,7 @@ def get_current_user_profile(
     user: UserRead = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    """
-    Get current user's profile.
-    """
+
     return auth_service.get_current_user_profile(session, user.id)
 
 

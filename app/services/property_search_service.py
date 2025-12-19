@@ -9,18 +9,14 @@ class PropertySearchService:
 
     @staticmethod
     def search(session: Session, keyword: str) -> PropertySearchResponse:
-        # -------------------
-        # REDIS CACHE CHECK
-        # -------------------
+
         cache_key = make_key("search_property", {"keyword": keyword})
         cached = cache_get(cache_key)
 
         if cached:
             return PropertySearchResponse(results=cached)
 
-        # -------------------
-        # DB QUERY
-        # -------------------
+
         properties = PropertySearchRepository.search_properties(
             session=session,
             keyword=keyword
@@ -31,9 +27,7 @@ class PropertySearchService:
             for p in properties
         ]
 
-        # -------------------
-        # SAVE CACHE
-        # -------------------
+
         cache_set(cache_key, results, expire_seconds=60 * 10)
 
         return PropertySearchResponse(results=results)

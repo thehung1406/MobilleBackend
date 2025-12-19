@@ -51,7 +51,7 @@ class PaymentService:
         if not booking:
             raise Exception("Booking không tồn tại")
 
-        # Booking expired → unlock + cancel
+
         if booking.expires_at < datetime.utcnow():
             for rid in booking.selected_rooms:
                 release_room_lock(rid, booking.checkin, booking.checkout)
@@ -60,10 +60,10 @@ class PaymentService:
             session.commit()
             raise Exception("Booking đã hết hạn — không thể thanh toán")
 
-        # Update payment
+
         payment.status = "completed"
 
-        # Create booked_room
+
         for rid in booking.selected_rooms:
             BookedRoomRepository.create(
                 session=session,
@@ -78,9 +78,7 @@ class PaymentService:
         booking.status = "confirmed"
         session.commit()
 
-        # ------------------------------------------------
-        # ✔ GỬI MAIL SAU KHI THANH TOÁN THÀNH CÔNG
-        # ------------------------------------------------
+
         try:
             mailer.send_booking_confirmation(booking.id)
             mailer.send_payment_success(booking.id)

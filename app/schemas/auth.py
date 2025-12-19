@@ -3,7 +3,7 @@ from typing import Optional
 from app.utils.enums import UserRole
 
 
-# ========= LOGIN =========
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -15,7 +15,7 @@ class TokenData(BaseModel):
     token_type: str = "bearer"
 
 
-# ========= SIGNUP (DÙNG UserCreate) =========
+
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str

@@ -3,41 +3,30 @@ from typing import Optional
 from app.utils.enums import UserRole
 
 
-# ======================
-# BASE
-# ======================
+
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
     phone: Optional[str] = None
 
 
-# ======================
-# CREATE CUSTOMER
-# ======================
+
 class UserCreate(UserBase):
     password: str
 
 
-# ======================
-# STAFF CREATE (SUPER ADMIN)
-# ======================
+
 class StaffCreate(UserBase):
     password: str
     property_id: int
 
 
-# ======================
-# UPDATE PROFILE
-# ======================
+
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
 
 
-# ======================
-# READ RESPONSE
-# ======================
 class UserRead(UserBase):
     id: int
     role: UserRole

@@ -19,10 +19,10 @@ class Booking(SQLModel, table=True):
     booking_date: datetime = Field(default_factory=datetime.utcnow)
     num_guests: int = 1
 
-    status: str = Field(default="pending")  # pending | confirmed | cancelled
+    status: str = Field(default="pending")
     expires_at: Optional[datetime] = None
 
-    # 🔥 DANH SÁCH ROOM MÀ USER CHỌN
+
     selected_rooms: List[int] = Field(
         default_factory=list,
         sa_column=Column(JSON)

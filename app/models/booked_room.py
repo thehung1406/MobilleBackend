@@ -15,10 +15,10 @@ class BookedRoom(SQLModel, table=True):
     booking_id: int = Field(foreign_key="booking.id")
     room_id: int = Field(foreign_key="room.id")
 
-    # 🟢 MUST HAVE — để check phòng trùng ngày
+
     checkin: date
     checkout: date
 
-    # RELATIONS
+
     booking: "Booking" = Relationship(back_populates="booked_rooms")
     room: "Room" = Relationship(back_populates="booked_rooms")

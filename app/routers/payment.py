@@ -8,7 +8,7 @@ from app.services.payment_service import PaymentService
 router = APIRouter(prefix="/payment", tags=["Payment"])
 
 
-# 1) User nhấn "Thanh toán" → tạo payment + tạo QR
+
 @router.post("")
 def create_payment(payload: PaymentCreate, session: Session = Depends(get_session)):
     return PaymentService.create_payment(
@@ -19,7 +19,6 @@ def create_payment(payload: PaymentCreate, session: Session = Depends(get_sessio
     )
 
 
-# 2) User bấm nút "Tôi đã thanh toán"
 @router.post("/{payment_id}/confirm")
 def confirm_payment(payment_id: int, session: Session = Depends(get_session)):
     return PaymentService.confirm_payment(session=session, payment_id=payment_id)

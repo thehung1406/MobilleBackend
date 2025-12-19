@@ -15,6 +15,5 @@ class Room(SQLModel, table=True):
     image: Optional[str] = None
     room_type_id: int = Field(foreign_key="room_type.id")
 
-    # RELATIONS
     room_type: "RoomType" = Relationship(back_populates="rooms")
     booked_rooms: List["BookedRoom"] = Relationship(back_populates="room")
